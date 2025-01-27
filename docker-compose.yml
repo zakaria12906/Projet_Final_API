@@ -1,0 +1,91 @@
+
+
+
+services:
+  # Gateway Service
+  gateway-service:
+    build:
+      context: ./services/gateway-service
+    container_name: gateway-service
+    ports:
+      - "3000:3000"
+    networks:
+      - trd-network
+    depends_on:
+      - auth-service
+      - customer-service
+      - notification-service
+
+  # Auth Service
+  auth-service:
+    build:
+      context: ./services/auth-service
+    container_name: auth-service
+    ports:
+      - "4001:4001"
+    networks:
+      - trd-network
+    depends_on:
+      - database
+      - message-broker
+
+  # Customer Service
+  customer-service:
+    build:
+      context: ./services/customer-service
+    container_name: customer-service
+    ports:
+      - "4000:4000"
+    networks:
+      - trd-network
+    depends_on:
+      - database
+      - message-broker
+
+  # Notification Service
+  notification-service:
+    build:
+      context: ./services/notification-service
+    container_name: notification-service
+    ports:
+      - "4002:4002"
+    networks:
+      - trd-network
+    depends_on:
+      - message-broker
+
+  # Message Broker (RabbitMQ)
+  message-broker:
+    image: rabbitmq:management
+    environment:
+      - RABBITMQ_DEFAULT_USER=myuser
+      - RABBITMQ_DEFAULT_PASS=mypassword
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+      
+  # Database (MariaDB)
+  database:
+    image: mariadb:10.7
+    container_name: projet_final_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: trd
+      MYSQL_USER: user
+      MYSQL_PASSWORD: userpassword
+    ports:
+      - "3307:3306"
+    volumes:
+      - db-data:/var/lib/mysql
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - trd-network
+
+volumes:
+  db-data: # Volume pour persister les données MariaDB
+
+networks:
+  trd-network:
+    driver: bridge
