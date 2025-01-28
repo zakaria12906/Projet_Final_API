@@ -1,6 +1,5 @@
 
 
-
 services:
   # Gateway Service
   gateway-service:
@@ -22,11 +21,11 @@ services:
       context: ./services/auth-service
     container_name: auth-service
     ports:
-      - "4001:4001"
+      - "4005:4005"
     networks:
       - trd-network
     depends_on:
-      - database
+      - auth-db
       - message-broker
 
   # Customer Service
@@ -39,7 +38,7 @@ services:
     networks:
       - trd-network
     depends_on:
-      - database
+      - customers-db
       - message-broker
 
   # Notification Service
@@ -57,34 +56,63 @@ services:
   # Message Broker (RabbitMQ)
   message-broker:
     image: rabbitmq:management
+    container_name: message-broker
     environment:
       - RABBITMQ_DEFAULT_USER=myuser
       - RABBITMQ_DEFAULT_PASS=mypassword
     ports:
       - "5672:5672"
       - "15672:15672"
+    networks:
+      - trd-network
 
-      
-  # Database (MariaDB)
-  database:
+  # Auth Database (MariaDB)
+  auth-db:
     image: mariadb:10.7
-    container_name: projet_final_db
+    container_name: auth-db
     restart: always
+    command: --bind-address=0.0.0.0 --port=3306
     environment:
       MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: trd
-      MYSQL_USER: user
-      MYSQL_PASSWORD: userpassword
+      MYSQL_DATABASE: auth_db
+      MYSQL_USER: auth_user
+      MYSQL_PASSWORD: authpassword
+      MYSQL_TCP_PORT: 3306
     ports:
       - "3307:3306"
     volumes:
-      - db-data:/var/lib/mysql
-      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - auth-db-data:/var/lib/mysql
+      - ./services/auth-service/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - trd-network
+    healthcheck:  # Correction d'indentation ici
+      test: mysqladmin ping -u root -p$$MYSQL_ROOT_PASSWORD
+      interval: 5s
+      timeout: 10s
+      retries: 10
+
+
+  # Customers Database (MariaDB)
+  customers-db:
+    image: mariadb:10.7
+    container_name: customers-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: customers_db
+      MYSQL_USER: customers_user
+      MYSQL_PASSWORD: customerspassword
+    ports:
+      - "3308:3306"
+    volumes:
+      - customers-db-data:/var/lib/mysql
+      - ./services/customer-service/db/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - trd-network
 
 volumes:
-  db-data: # Volume pour persister les données MariaDB
+  auth-db-data:
+  customers-db-data:
 
 networks:
   trd-network:
